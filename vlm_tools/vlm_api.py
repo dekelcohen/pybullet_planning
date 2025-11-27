@@ -359,7 +359,7 @@ class AzureGPT5Api(VLMApi):
 		self.model_name = 'gpt-5'  
 
 		# Optional timeout override  
-		self.gpt_query_timeout = kwargs.get('timeout', 10)  
+		self.gpt_query_timeout = kwargs.get('timeout', 90)  
 
 		# Basic validation  
 		missing = []  
@@ -379,11 +379,13 @@ class AzureGPT5Api(VLMApi):
 		prompt: str,  
 		image_path: str = "None",  
 		continue_chat: bool = True,  
-		max_tokens: int = 1000,  
+		max_tokens: int = 15000,  
 		temperature: float = 0.0,  
 		n: int = 1,  
 		**kwargs  
 	):  
+		VERBOSE = True
+
 		headers = {  
 			"Content-Type": "application/json",  
 			"api-key": self.api_key,  
@@ -405,12 +407,12 @@ class AzureGPT5Api(VLMApi):
 
 		payload = {  
 			"messages": messages,  
-			"max_tokens": max_tokens,  
-			"temperature": temperature,  
+			"max_completion_tokens": max_tokens,  
+			#"temperature": temperature,  
 			# Azure's Chat Completions generally supports `n` similar to OpenAI for multiple choices  
 			"n": n  
-		}  
-
+		} 
+		
 		# Azure Chat Completions endpoint  
 		url = (  
 			f"{self.endpoint}/openai/deployments/{self.deployment_name}"  
@@ -433,8 +435,8 @@ class AzureGPT5Api(VLMApi):
 		finally:  
 			signal.alarm(0)  
 
-		if 'choices' not in response:  
-			print('\n\nAzure OpenAI response\n')  
+		if VERBOSE or 'choices' not in response:  
+			print('\n\nAzure OpenAI response:\n')  
 			pprint(response)  
 
 		answers = [ans['message'] for ans in response.get('choices', [])]  
