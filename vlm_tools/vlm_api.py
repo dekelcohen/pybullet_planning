@@ -333,7 +333,132 @@ class GPT4vApi(VLMApi):
             contents.append(answer)
 
         return contents
+########################################## AzureGPT5Api ###################################################################################################
+import copy
+import traceback
+from pprint import pprint
+from dotenv import load_dotenv
 
+
+class AzureGPT5Api(VLMApi):
+	name = 'Azure GPT-5'
+	def __init__(self, **kwargs):  
+		super(AzureGPT5Api, self).__init__(**kwargs)  
+
+		# Load env from .env if present  
+		load_dotenv()  
+
+		# Read Azure config from kwargs first, then env vars  
+		self.api_key = kwargs.get('api_key') or os.getenv('AZURE_OPENAI_API_KEY')  
+		self.endpoint = kwargs.get('endpoint') or os.getenv('AZURE_OPENAI_ENDPOINT')  
+		self.api_version = kwargs.get('api_version') or os.getenv('AZURE_OPENAI_API_VERSION')  
+		# Azure uses deployment names rather than model names; default to "gpt-5" if not provided  
+		self.deployment_name = kwargs.get('deployment') or os.getenv('AZURE_DEPLOYMENT_MODEL') or 'gpt-5'  
+
+		# Maintain same public interface attribute  
+		self.model_name = 'gpt-5'  
+
+		# Optional timeout override  
+		self.gpt_query_timeout = kwargs.get('timeout', 10)  
+
+		# Basic validation  
+		missing = []  
+		if not self.api_key:  
+			missing.append('AZURE_OPENAI_API_KEY')  
+		if not self.endpoint:  
+			missing.append('AZURE_OPENAI_ENDPOINT')  
+		if not self.api_version:  
+			missing.append('AZURE_OPENAI_API_VERSION')  
+		if not self.deployment_name:  
+			missing.append('AZURE_DEPLOYMENT_MODEL')  
+		if missing:  
+			raise ValueError(f"Missing Azure OpenAI configuration: {', '.join(missing)}")  
+
+	def _ask(  
+		self,  
+		prompt: str,  
+		image_path: str = "None",  
+		continue_chat: bool = True,  
+		max_tokens: int = 1000,  
+		temperature: float = 0.0,  
+		n: int = 1,  
+		**kwargs  
+	):  
+		headers = {  
+			"Content-Type": "application/json",  
+			"api-key": self.api_key,  
+		}  
+
+		# Multi-modal content (keeps same interface as GPT4vApi)  
+		content = [{"type": "text", "text": prompt}]  
+		if image_path != "None" and image_path is not None:  
+			content.append({  
+				"type": "image_url",  
+				"image_url": {  
+					"url": f"data:image/jpeg;base64,{encode_image(image_path)}"  
+				}  
+			})  
+			self.last_image_path = image_path  
+
+		messages = copy.deepcopy(self.context)  
+		messages.append({"role": "user", "content": content})  
+
+		payload = {  
+			"messages": messages,  
+			"max_tokens": max_tokens,  
+			"temperature": temperature,  
+			# Azure's Chat Completions generally supports `n` similar to OpenAI for multiple choices  
+			"n": n  
+		}  
+
+		# Azure Chat Completions endpoint  
+		url = (  
+			f"{self.endpoint}/openai/deployments/{self.deployment_name}"  
+			f"/chat/completions?api-version={self.api_version}"  
+		)  
+
+		def timeout_handler(num, stack):  
+			print(f"setting timeout_handler for {num}")  
+			raise Exception("TIMEOUT")  
+
+		signal.signal(signal.SIGALRM, timeout_handler)  
+		signal.alarm(self.gpt_query_timeout)  
+
+		try:  
+			response = requests.post(url, headers=headers, json=payload).json()  
+		except Exception as ex:  
+			traceback.print_exc()  
+			print(f"\nTimed out GPT-query in {self.gpt_query_timeout} sec\n")  
+			sys.exit()  
+		finally:  
+			signal.alarm(0)  
+
+		if 'choices' not in response:  
+			print('\n\nAzure OpenAI response\n')  
+			pprint(response)  
+
+		answers = [ans['message'] for ans in response.get('choices', [])]  
+
+		# Keep the same conversation context behavior as GPT4vApi  
+		if "choices" in response:  
+			self.context.append({"role": "user", "content": prompt})  
+			self.context.extend(answers)  
+
+		contents = []  
+		for answer in answers:  
+			ans_content = answer.get('content')  
+			if isinstance(ans_content, str) and ans_content.startswith('```json'):  
+				# Normalize fenced JSON responses  
+				norm = ans_content.replace('\n', '').replace('```json{', '{').replace('}```', '}')  
+				try:  
+					norm = json.loads(norm)  
+				except Exception:  
+					pass  
+				contents.append(norm)  
+			else:  
+				contents.append(ans_content)  
+
+		return contents
 
 # ########################## FOR TESTING WHEN GPT-4V API is yet released ###############################
 #

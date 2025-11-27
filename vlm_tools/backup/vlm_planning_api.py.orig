@@ -24,7 +24,7 @@ from world_builder.world_utils import get_camera_image, make_camera_collage, \
     SURFACE, SPACE, MOVABLE
 from world_builder.world import World
 
-from vlm_tools.vlm_api import GPT4vApi, Claude3Api, AzureGPT5Api
+from vlm_tools.vlm_api import GPT4vApi, Claude3Api
 from vlm_tools.prompts_gpt4v import *
 # from vlm_tools.examples.prompts_playground import *
 from vlm_tools.visualize.viz_run_utils import output_html, launch_log_page, media_dir, content_dir
@@ -38,7 +38,7 @@ from vlm_tools.vlm_utils import plans_to_tree, rindex, export_tree_png, grow_bra
 
 def get_llamp_api(api_class_name):
     if 'gpt' in api_class_name:
-        return AzureGPT5PlanningApi # GPT4PlanningApi
+        return GPT4PlanningApi
     elif 'claude' in api_class_name:
         return Claude3PlanningApi
     return LLAMPApi
@@ -711,15 +711,7 @@ class LLAMPApi(object):
 
 ###########################################################
 
-class AzureGPT5PlanningApi(LLAMPApi):
 
-    def __init__(self, open_goal, vlm_kwargs=dict(), **kwargs):
-        super(AzureGPT5PlanningApi, self).__init__(open_goal, **kwargs)
-        self.llm = AzureGPT5Api(**vlm_kwargs)
-
-    def parse_lines_into_lists_fn(self, string: str, **kwargs):
-        return parse_lines_into_lists_gpt4(string, **kwargs)
-        
 class GPT4PlanningApi(LLAMPApi):
 
     def __init__(self, open_goal, vlm_kwargs=dict(), **kwargs):
@@ -795,4 +787,3 @@ def get_observed_objects(world, objects, verbose=True):
     if verbose:
         print()
     return bodies, descriptions
-
