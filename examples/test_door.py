@@ -76,6 +76,14 @@ def get_camera_frame(
 
     return np.reshape(rgb, (height, width, 4))
 
+def is_empty(generator):
+    try:
+        next(generator)
+        return False
+    except StopIteration:
+        return True
+
+
 def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1., sleep=None, video_recoder = None):
     enable_gravity()
     dt = get_time_step()
