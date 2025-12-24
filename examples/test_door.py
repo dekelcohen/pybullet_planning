@@ -24,6 +24,82 @@ from pybullet_tools.utils import add_data_path, connect, disconnect, wait_if_gui
     violates_limits, LockRenderer, get_joint_position, get_base_name, get_body_name
 from .test_ramp import condition_controller, simulate
 
+############################## Save Video ###################
+import cv2
+
+class VideoRecorder:
+    def __init__(self, filename, width=640, height=480, fps=30):
+        self.width = width
+        self.height = height
+        self.fps = fps
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        self.writer = cv2.VideoWriter(filename, fourcc, fps, (width, height))
+
+    def add_frame(self, rgb_array):
+        # PyBullet gives RGBA → convert to BGR for OpenCV
+        frame = rgb_array[:, :, :3]
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        self.writer.write(frame)
+
+    def close(self):
+        self.writer.release()
+
+def get_camera_frame(
+    width=640,
+    height=480,
+    camera_pos=(1.5, -1.5, 1.5),
+    target_pos=(-1.5, 1.5, 0),
+    fov=60,
+    near=0.01,
+    far=10.0,
+):
+    view_matrix = p.computeViewMatrix(
+        cameraEyePosition=camera_pos,
+        cameraTargetPosition=target_pos,
+        cameraUpVector=[0, 0, 1],
+    )
+
+    proj_matrix = p.computeProjectionMatrixFOV(
+        fov=fov,
+        aspect=width / height,
+        nearVal=near,
+        farVal=far,
+    )
+
+    _, _, rgb, _, _ = p.getCameraImage(
+        width=width,
+        height=height,
+        viewMatrix=view_matrix,
+        projectionMatrix=proj_matrix,
+        renderer=p.ER_BULLET_HARDWARE_OPENGL,
+    )
+
+    return np.reshape(rgb, (height, width, 4))
+
+def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1., sleep=None, video_recoder = None):
+    enable_gravity()
+    dt = get_time_step()
+    print('Time step: {:.6f} sec'.format(dt))
+    start_time = last_print = time.time()
+    for step in irange(max_steps):
+        duration = step * dt
+        if duration >= max_duration:
+            break
+        if (controller is not None) and is_empty(controller):
+            break
+        step_simulation()
+        synchronize_viewer()
+        if not video_recoder is None:
+            frame = get_camera_frame()
+            recorder.add_frame(frame)
+            
+        if elapsed_time(last_print) >= print_rate:
+            print('Sim step: {} | Sim time: {:.3f} sec | Elapsed time: {:.3f} sec'.format(
+                step, duration, elapsed_time(start_time)))
+            last_print = time.time()
+        if sleep is not None:
+            time.sleep(sleep)
+
 
 #from examples.test_turtlebot_motion import BASE_JOINTS
 
@@ -218,13 +294,17 @@ def test_simulation(robot, target_x, video=None):
     robot_link = get_first_link(robot)
     if video is None:
         wait_if_gui('Begin?')
-    simulate(controller=condition_controller(
-        lambda *args: abs(target_x - point_from_pose(get_link_pose(robot, robot_link))[0]) < 1e-3), sleep=0.01) # TODO: velocity condition
+    else:
+        video_recoder = VideoRecorder('./open_door.mp4')
+        my_simulate(controller=condition_controller(
+        lambda *args: abs(target_x - point_from_pose(get_link_pose(robot, robot_link))[0]) < 1e-3), sleep=0.01, video_recoder=video_recoder) # TODO: velocity condition
     # print('Velocities:', get_joint_velocities(robot, robot_joints))
     # print('Torques:', get_joint_torques(robot, robot_joints))
     if video is None:
         set_renderer(enable=True)
         wait_if_gui('Finish?')
+    else:
+        video_recoder.close()
 
 ##################################################
 
