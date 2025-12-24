@@ -315,7 +315,7 @@ def main(use_turtlebot=True):
     args = parser.parse_args()
     video = 'video.mp4' if args.video else None
 
-    connect(use_gui=True, mp4=video)
+    connect(use_gui=False, mp4=video)
     #set_renderer(enable=False)
     # print(list_pybullet_data())
     # print(list_pybullet_robots())
