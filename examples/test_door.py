@@ -99,7 +99,7 @@ def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1.,
         synchronize_viewer()
         if not video_recoder is None:
             frame = get_camera_frame()
-            recorder.add_frame(frame)
+            video_recorder.add_frame(frame)
             
         if elapsed_time(last_print) >= print_rate:
             print('Sim step: {} | Sim time: {:.3f} sec | Elapsed time: {:.3f} sec'.format(
