@@ -84,7 +84,7 @@ def is_empty(generator):
         return True
 
 
-def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1., sleep=None, video_recoder = None):
+def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1., sleep=None, video_recorder = None):
     enable_gravity()
     dt = get_time_step()
     print('Time step: {:.6f} sec'.format(dt))
@@ -97,7 +97,7 @@ def my_simulate(controller=None, max_duration=INF, max_steps=INF, print_rate=1.,
             break
         step_simulation()
         synchronize_viewer()
-        if not video_recoder is None:
+        if not video_recorder is None:
             frame = get_camera_frame()
             video_recorder.add_frame(frame)
             
@@ -303,16 +303,16 @@ def test_simulation(robot, target_x, video=None):
     if video is None:
         wait_if_gui('Begin?')
     else:
-        video_recoder = VideoRecorder('./open_door.mp4')
+        video_recorder = VideoRecorder('./open_door.mp4')
         my_simulate(controller=condition_controller(
-        lambda *args: abs(target_x - point_from_pose(get_link_pose(robot, robot_link))[0]) < 1e-3), sleep=0.01, video_recoder=video_recoder) # TODO: velocity condition
+        lambda *args: abs(target_x - point_from_pose(get_link_pose(robot, robot_link))[0]) < 1e-3), sleep=0.01, video_recorder=video_recorder) # TODO: velocity condition
     # print('Velocities:', get_joint_velocities(robot, robot_joints))
     # print('Torques:', get_joint_torques(robot, robot_joints))
     if video is None:
         set_renderer(enable=True)
         wait_if_gui('Finish?')
     else:
-        video_recoder.close()
+        video_recorder.close()
 
 ##################################################
 
